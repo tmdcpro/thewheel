@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <h1>Debug Test</h1>
+    <div id="test"></div>
+    <script>
+        console.log("Script loading...");
+        console.log("D3 version:", d3.version);
+        
+        // Test if data.js loads
+        fetch('./data.js')
+            .then(response => response.text())
+            .then(text => {
+                console.log("data.js loaded:", text.substring(0, 100));
+                eval(text); // Load the data
+                console.log("graphData:", graphData);
+            })
+            .catch(err => console.error("Error loading data.js:", err));
+            
+        d3.select("#test").append("p").text("D3.js is working!");
+    </script>
+</body>
+</html>

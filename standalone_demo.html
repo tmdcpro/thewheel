@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Wheel - Machine Learning Frameworks Landscape</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: Arial, sans-serif; 
+            background: #1a1a1a; 
+            color: #eee; 
+            overflow: hidden;
+        }
+        #controls { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            z-index: 10; 
+            background: rgba(0,0,0,0.8); 
+            padding: 20px; 
+            border-radius: 8px; 
+            border: 1px solid #444;
+        }
+        .node { 
+            stroke: #fff; 
+            stroke-width: 2px; 
+            cursor: pointer; 
+            transition: all 0.3s;
+        }
+        .node:hover {
+            stroke-width: 3px;
+        }
+        .link { 
+            stroke: #999; 
+            stroke-opacity: 0.6; 
+            stroke-width: 2px;
+        }
+        text { 
+            pointer-events: none; 
+            font-size: 11px; 
+            fill: #ccc; 
+            font-weight: bold;
+        }
+        .node-project { fill: #4a90e2; }
+        .node-component { fill: #f5a623; }
+        h2 { margin-top: 0; color: #4a90e2; }
+        .status { color: #0f0; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <h2>🎯 The Wheel</h2>
+        <p>Machine Learning Frameworks Landscape</p>
+        <div class="status">✅ Visualization Active</div>
+        <div id="stats"></div>
+        <p style="font-size: 10px; margin-top: 15px;">
+            Click blue nodes to open GitHub repos
+        </p>
+    </div>
+    <div id="viz"></div>
+
+    <script>
+        // Embedded data from the research pipeline
+        const graphData = {
+            "nodes": [
+                {
+                    "id": 1,
+                    "name": "tensorflow/tensorflow",
+                    "type": "Project",
+                    "url": "https://github.com/tensorflow/tensorflow"
+                },
+                {
+                    "id": 2,
+                    "name": "huggingface/transformers",
+                    "type": "Project",
+                    "url": "https://github.com/huggingface/transformers"
+                },
+                {
+                    "id": 3,
+                    "name": "josephmisiti/awesome-machine-learning",
+                    "type": "Project",
+                    "url": "https://github.com/josephmisiti/awesome-machine-learning"
+                },
+                {
+                    "id": 4,
+                    "name": "PaddlePaddle/Paddle",
+                    "type": "Project",
+                    "url": "https://github.com/PaddlePaddle/Paddle"
+                },
+                {
+                    "id": 5,
+                    "name": "RasaHQ/rasa",
+                    "type": "Project",
+                    "url": "https://github.com/RasaHQ/rasa"
+                }
+            ],
+            "links": [
+                { "source": 1, "target": 2 },
+                { "source": 2, "target": 3 },
+                { "source": 3, "target": 4 },
+                { "source": 4, "target": 5 },
+                { "source": 1, "target": 3 },
+                { "source": 2, "target": 4 }
+            ]
+        };
+
+        console.log("The Wheel: Starting visualization...");
+
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        function renderViz(data) {
+            console.log("Rendering", data.nodes.length, "nodes and", data.links.length, "links");
+            
+            const svg = d3.select("#viz")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            const simulation = d3.forceSimulation(data.nodes)
+                .force("link", d3.forceLink(data.links).id(d => d.id).distance(150))
+                .force("charge", d3.forceManyBody().strength(-400))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(30));
+
+            const link = svg.append("g")
+                .selectAll("line")
+                .data(data.links)
+                .enter().append("line")
+                .attr("class", "link");
+
+            const node = svg.append("g")
+                .selectAll("circle")
+                .data(data.nodes)
+                .enter().append("circle")
+                .attr("class", d => `node node-${(d.type || 'default').toLowerCase()}`)
+                .attr("r", 15)
+                .on("click", (event, d) => {
+                    console.log("Clicked:", d.name);
+                    if (d.url) {
+                        window.open(d.url, '_blank');
+                    } else {
+                        alert(`${d.name}\nType: ${d.type}`);
+                    }
+                })
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+
+            const labels = svg.append("g")
+                .selectAll("text")
+                .data(data.nodes)
+                .enter().append("text")
+                .text(d => d.name.split('/')[1] || d.name) // Show just repo name
+                .attr("dx", 20)
+                .attr("dy", 4);
+
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+
+                labels
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            });
+
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+            // Update stats
+            document.getElementById('stats').innerHTML = 
+                `<strong>Projects:</strong> ${data.nodes.length}<br><strong>Connections:</strong> ${data.links.length}`;
+        }
+
+        // Start the visualization
+        renderViz(graphData);
+        console.log("The Wheel: Visualization complete!");
+    </script>
+</body>
+</html>

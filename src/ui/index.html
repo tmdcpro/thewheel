@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Wheel - Landscape Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { margin: 0; font-family: sans-serif; background: #1a1a1a; color: #eee; }
+        #controls { position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; }
+        .node { stroke: #fff; stroke-width: 1.5px; cursor: pointer; }
+        .link { stroke: #999; stroke-opacity: 0.6; }
+        text { pointer-events: none; font-size: 12px; fill: #ccc; }
+        .node-project { fill: #4a90e2; }
+        .node-component { fill: #f5a623; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading The Wheel...</div>
+    <div id="controls">
+        <h2>The Wheel</h2>
+        <p>Software Landscape Navigator</p>
+        <div id="stats"></div>
+    </div>
+    <div id="viz"></div>
+
+    <script>
+        console.log("Starting The Wheel...");
+        
+        // Remove loading message
+        setTimeout(() => {
+            document.getElementById('loading').style.display = 'none';
+        }, 1000);
+
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // Load data and render
+        fetch('./data.js')
+            .then(response => response.text())
+            .then(text => {
+                eval(text); // This loads graphData
+                console.log("Data loaded:", graphData);
+                renderViz(graphData);
+            })
+            .catch(err => {
+                console.error("Error loading data:", err);
+                // Fallback to sample data
+                const sampleData = {
+                    nodes: [
+                        { id: 1, name: "The Wheel", type: "Project", url: "https://github.com" },
+                        { id: 2, name: "Neo4j", type: "Component" },
+                        { id: 3, name: "D3.js", type: "Component" }
+                    ],
+                    links: [
+                        { source: 1, target: 2 },
+                        { source: 1, target: 3 }
+                    ]
+                };
+                renderViz(sampleData);
+            });
+
+        function renderViz(data) {
+            console.log("Rendering visualization with", data.nodes.length, "nodes");
+            
+            const svg = d3.select("#viz")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            const simulation = d3.forceSimulation(data.nodes)
+                .force("link", d3.forceLink(data.links).id(d => d.id).distance(100))
+                .force("charge", d3.forceManyBody().strength(-300))
+                .force("center", d3.forceCenter(width / 2, height / 2));
+
+            const link = svg.append("g")
+                .selectAll("line")
+                .data(data.links)
+                .enter().append("line")
+                .attr("class", "link")
+                .attr("stroke-width", 2);
+
+            const node = svg.append("g")
+                .selectAll("circle")
+                .data(data.nodes)
+                .enter().append("circle")
+                .attr("class", d => `node node-${(d.type || 'default').toLowerCase()}`)
+                .attr("r", d => d.type === "Project" ? 12 : 8)
+                .on("click", (event, d) => {
+                    if (d.url) {
+                        window.open(d.url, '_blank');
+                    } else {
+                        alert(`${d.name}\nType: ${d.type}`);
+                    }
+                });
+
+            const labels = svg.append("g")
+                .selectAll("text")
+                .data(data.nodes)
+                .enter().append("text")
+                .text(d => d.name || d.id)
+                .attr("dx", 15)
+                .attr("dy", 4);
+
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+
+                node
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y);
+
+                labels
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            });
+
+            // Update stats
+            document.getElementById('stats').innerHTML = 
+                `Nodes: ${data.nodes.length}<br>Links: ${data.links.length}`;
+        }
+    </script>
+</body>
+</html>

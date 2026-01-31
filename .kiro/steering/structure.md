@@ -1,25 +1,18 @@
 # Project Structure
 
 ## Directory Layout
-[Describe your project's folder structure and organization]
+- `src/`: Core logic
+  - `engine/`: Research and analysis logic
+  - `data/`: Neo4j drivers and schema definitions
+  - `ui/`: D3.js visualization components
+- `docs/`: Product and technical documentation
+- `.kiro/`: Kiro CLI configuration and prompts
+- `.agents/`: Agent implementation plans
 
 ## File Naming Conventions
-[How files and directories should be named]
+- Python: `snake_case.py`
+- Markdown: `kebab-case.md`
+- Classes: `PascalCase`
 
 ## Module Organization
-[How code is organized into modules, packages, or components]
-
-## Configuration Files
-[Location and purpose of config files]
-
-## Documentation Structure
-[Where and how documentation is organized]
-
-## Asset Organization
-[How images, styles, and other assets are structured]
-
-## Build Artifacts
-[Where compiled/generated files are placed]
-
-## Environment-Specific Files
-[How different environments (dev, staging, prod) are handled]
+- Decoupled adapters for different data sources (GitHub, GitLab, PyPI, etc.)

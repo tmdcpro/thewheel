@@ -1,0 +1,27 @@
+{
+  "packages": [
+    "python@3.11"
+  ],
+  "shell": {
+    "init_hook": [
+      "echo 'Setting up The Wheel development environment...'",
+      "export PYTHONPATH=$PWD:$PYTHONPATH",
+      "python -m pip install --user -r requirements.txt",
+      "echo '✅ Environment ready! Run: python src/main.py \"your query\" --mock'"
+    ],
+    "scripts": {
+      "test": [
+        "python src/main.py 'graph database' --mock --limit 3"
+      ],
+      "demo": [
+        "python src/main.py 'machine learning' --mock --limit 5"
+      ],
+      "eval": [
+        "python tests/evals_accuracy.py"
+      ]
+    }
+  },
+  "env": {
+    "PYTHONPATH": "$PWD"
+  }
+}
