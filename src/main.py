@@ -6,17 +6,19 @@ from src.engine.strategy import StrategyAdvisor
 from src.data.exporter import export_landscape_to_json
 from src.data.connection import db
 
-def run_research(query: str, limit: int = 5):
+def run_research(query: str, limit: int = 5, filters: Dict = None):
     print(f"🚀 Starting research for: '{query}'")
+    if filters:
+        print(f"🔧 Applying filters: {filters}")
     
     # 1. Initialize
     github = GitHubAdapter()
     analyzer = ProjectAnalyzer()
     advisor = StrategyAdvisor()
     
-    # 2. Search GitHub
+    # 2. Search GitHub with filters
     print(f"🔍 Searching GitHub...")
-    projects = github.search(query)
+    projects = github.search(query, filters)
     
     # 3. Process and Persist
     count = 0
@@ -42,7 +44,7 @@ def run_research(query: str, limit: int = 5):
     export_landscape_to_json()
     
     print(f"\n✅ Research complete. Added {count} projects.")
-    print("👉 Open 'src/ui/index.html' to visualize the landscape.")
+    print("👉 Open 'standalone_demo.html' to visualize and search the landscape.")
 
 def link_components_to_project(project: Dict):
     """Helper to link extracted components to their project node."""
@@ -57,12 +59,29 @@ def link_components_to_project(project: Dict):
         session.run(query, url=project['url'], components=project['components'])
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="The Wheel - Research Engine")
+    parser = argparse.ArgumentParser(description="The Wheel - Interactive Research Engine")
     parser.add_argument("query", help="What software/product idea are you researching?")
     parser.add_argument("--limit", type=int, default=5, help="Limit number of projects analyzed")
     parser.add_argument("--mock", action="store_true", help="Run in mock mode without Neo4j")
     
+    # Filter arguments
+    parser.add_argument("--language", help="Filter by programming language")
+    parser.add_argument("--min-stars", type=int, help="Minimum number of stars")
+    parser.add_argument("--updated", choices=['week', 'month', 'year'], help="Recently updated filter")
+    parser.add_argument("--topic", help="Filter by GitHub topic")
+    
     args = parser.parse_args()
+    
+    # Build filters dictionary
+    filters = {}
+    if args.language:
+        filters['language'] = args.language
+    if args.min_stars:
+        filters['stars'] = f">={args.min_stars}"
+    if args.updated:
+        filters['pushed'] = f">={args.updated}"
+    if args.topic:
+        filters['topic'] = args.topic
     
     if args.mock:
         db.connect("mock", "", "")
@@ -72,7 +91,7 @@ if __name__ == "__main__":
         pass
     
     try:
-        run_research(args.query, args.limit)
+        run_research(args.query, args.limit, filters if filters else None)
     except Exception as e:
         print(f"❌ Error during research: {e}")
         print("Tip: Ensure Neo4j is running and reachable.")

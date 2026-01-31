@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Wheel - Machine Learning Frameworks Landscape</title>
+    <title>The Wheel - Interactive Research Engine</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         body { 
@@ -18,10 +18,80 @@
             top: 20px; 
             left: 20px; 
             z-index: 10; 
-            background: rgba(0,0,0,0.8); 
+            background: rgba(0,0,0,0.9); 
             padding: 20px; 
             border-radius: 8px; 
             border: 1px solid #444;
+            width: 320px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #search-panel {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #333;
+        }
+        .search-input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background: #333;
+            border: 1px solid #555;
+            color: #eee;
+            border-radius: 4px;
+        }
+        .search-button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 5px 5px 0;
+        }
+        .search-button:hover {
+            background: #357abd;
+        }
+        .filter-section {
+            margin: 10px 0;
+        }
+        .filter-section h4 {
+            margin: 5px 0;
+            color: #4a90e2;
+        }
+        .filter-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .filter-item input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        .filter-item select {
+            background: #333;
+            border: 1px solid #555;
+            color: #eee;
+            padding: 4px;
+            border-radius: 3px;
+            margin-left: 8px;
+            flex: 1;
+        }
+        .custom-filter {
+            display: flex;
+            margin: 5px 0;
+        }
+        .custom-filter input {
+            flex: 1;
+            margin-right: 5px;
+        }
+        .remove-filter {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
         }
         .node { 
             stroke: #fff; 
@@ -47,23 +117,100 @@
         .node-component { fill: #f5a623; }
         h2 { margin-top: 0; color: #4a90e2; }
         .status { color: #0f0; font-size: 12px; }
+        .loading { color: #f39c12; }
+        #stats {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #333;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
     <div id="controls">
         <h2>🎯 The Wheel</h2>
-        <p>Machine Learning Frameworks Landscape</p>
-        <div class="status">✅ Visualization Active</div>
+        <p>Interactive Research Engine</p>
+        
+        <div id="search-panel">
+            <input type="text" id="search-query" class="search-input" placeholder="Search for projects (e.g., 'web frameworks')" value="machine learning frameworks">
+            <div style="display: flex; gap: 5px; margin-top: 8px;">
+                <button class="search-button" onclick="searchProjects()">🔍 Search</button>
+                <button class="search-button" onclick="clearResults()" style="background: #666;">Clear</button>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <h4>🔧 Search Filters</h4>
+            
+            <div class="filter-item">
+                <input type="checkbox" id="filter-language" checked>
+                <label>Language:</label>
+                <select id="language-select">
+                    <option value="">Any</option>
+                    <option value="python">Python</option>
+                    <option value="javascript">JavaScript</option>
+                    <option value="java">Java</option>
+                    <option value="go">Go</option>
+                    <option value="rust">Rust</option>
+                    <option value="typescript">TypeScript</option>
+                </select>
+            </div>
+
+            <div class="filter-item">
+                <input type="checkbox" id="filter-stars">
+                <label>Min Stars:</label>
+                <select id="stars-select">
+                    <option value="100">100+</option>
+                    <option value="1000">1,000+</option>
+                    <option value="5000">5,000+</option>
+                    <option value="10000">10,000+</option>
+                </select>
+            </div>
+
+            <div class="filter-item">
+                <input type="checkbox" id="filter-updated">
+                <label>Updated:</label>
+                <select id="updated-select">
+                    <option value="week">This week</option>
+                    <option value="month">This month</option>
+                    <option value="year">This year</option>
+                </select>
+            </div>
+
+            <div class="filter-item">
+                <input type="checkbox" id="filter-limit" checked>
+                <label>Results:</label>
+                <select id="limit-select">
+                    <option value="5">5 projects</option>
+                    <option value="10">10 projects</option>
+                    <option value="15">15 projects</option>
+                    <option value="20">20 projects</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <h4>➕ Custom Filters</h4>
+            <div id="custom-filters"></div>
+            <button class="search-button" onclick="addCustomFilter()" style="background: #27ae60; font-size: 12px;">+ Add Filter</button>
+        </div>
+
+        <div class="status" id="search-status">✅ Ready to search</div>
         <div id="stats"></div>
-        <p style="font-size: 10px; margin-top: 15px;">
-            Click blue nodes to open GitHub repos
+        
+        <p style="font-size: 10px; margin-top: 15px; color: #666;">
+            Click blue nodes to open GitHub repos. Drag to explore relationships.
         </p>
     </div>
     <div id="viz"></div>
 
     <script>
-        // Embedded data from the research pipeline
-        const graphData = {
+        let currentData = null;
+        let simulation = null;
+        let customFilterCount = 0;
+
+        // Initial data
+        const initialData = {
             "nodes": [
                 {
                     "id": 1,
@@ -106,20 +253,154 @@
             ]
         };
 
-        console.log("The Wheel: Starting visualization...");
+        function searchProjects() {
+            const query = document.getElementById('search-query').value.trim();
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
 
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+            const status = document.getElementById('search-status');
+            status.className = 'loading';
+            status.textContent = '🔄 Searching...';
+
+            // Build filter parameters
+            const filters = buildFilters();
+            
+            // Simulate API call with mock data
+            setTimeout(() => {
+                const mockResults = generateMockResults(query, filters);
+                updateVisualization(mockResults);
+                
+                status.className = 'status';
+                status.textContent = `✅ Found ${mockResults.nodes.length} projects`;
+            }, 1500);
+        }
+
+        function buildFilters() {
+            const filters = {};
+            
+            if (document.getElementById('filter-language').checked) {
+                const lang = document.getElementById('language-select').value;
+                if (lang) filters.language = lang;
+            }
+            
+            if (document.getElementById('filter-stars').checked) {
+                filters.minStars = document.getElementById('stars-select').value;
+            }
+            
+            if (document.getElementById('filter-updated').checked) {
+                filters.updated = document.getElementById('updated-select').value;
+            }
+            
+            if (document.getElementById('filter-limit').checked) {
+                filters.limit = document.getElementById('limit-select').value;
+            }
+
+            // Add custom filters
+            const customFilters = document.querySelectorAll('.custom-filter input');
+            customFilters.forEach((input, index) => {
+                if (input.value.trim()) {
+                    filters[`custom_${index}`] = input.value.trim();
+                }
+            });
+
+            return filters;
+        }
+
+        function generateMockResults(query, filters) {
+            // Mock project database
+            const mockProjects = [
+                { name: "facebook/react", type: "Project", url: "https://github.com/facebook/react", language: "javascript" },
+                { name: "vuejs/vue", type: "Project", url: "https://github.com/vuejs/vue", language: "javascript" },
+                { name: "angular/angular", type: "Project", url: "https://github.com/angular/angular", language: "typescript" },
+                { name: "sveltejs/svelte", type: "Project", url: "https://github.com/sveltejs/svelte", language: "javascript" },
+                { name: "django/django", type: "Project", url: "https://github.com/django/django", language: "python" },
+                { name: "rails/rails", type: "Project", url: "https://github.com/rails/rails", language: "ruby" },
+                { name: "expressjs/express", type: "Project", url: "https://github.com/expressjs/express", language: "javascript" },
+                { name: "gin-gonic/gin", type: "Project", url: "https://github.com/gin-gonic/gin", language: "go" },
+                { name: "pytorch/pytorch", type: "Project", url: "https://github.com/pytorch/pytorch", language: "python" },
+                { name: "scikit-learn/scikit-learn", type: "Project", url: "https://github.com/scikit-learn/scikit-learn", language: "python" }
+            ];
+
+            // Filter based on query and filters
+            let filtered = mockProjects.filter(p => 
+                p.name.toLowerCase().includes(query.toLowerCase()) ||
+                query.toLowerCase().includes(p.name.split('/')[1]?.toLowerCase() || '') ||
+                (query.includes('web') && ['react', 'vue', 'angular', 'svelte', 'express', 'django', 'rails'].some(fw => p.name.includes(fw))) ||
+                (query.includes('ml') || query.includes('machine learning')) && ['pytorch', 'scikit-learn'].some(ml => p.name.includes(ml))
+            );
+
+            if (filters.language) {
+                filtered = filtered.filter(p => p.language === filters.language);
+            }
+
+            const limit = parseInt(filters.limit) || 5;
+            filtered = filtered.slice(0, limit);
+
+            // Generate nodes and links
+            const nodes = filtered.map((project, index) => ({
+                id: index + 1,
+                name: project.name,
+                type: project.type,
+                url: project.url
+            }));
+
+            const links = [];
+            for (let i = 0; i < nodes.length - 1; i++) {
+                links.push({ source: i + 1, target: i + 2 });
+                if (i > 0) {
+                    links.push({ source: 1, target: i + 1 });
+                }
+            }
+
+            return { nodes, links };
+        }
+
+        function addCustomFilter() {
+            customFilterCount++;
+            const container = document.getElementById('custom-filters');
+            const filterDiv = document.createElement('div');
+            filterDiv.className = 'custom-filter';
+            filterDiv.innerHTML = `
+                <input type="text" placeholder="Custom filter (e.g., 'topic:api')" class="search-input">
+                <button class="remove-filter" onclick="removeCustomFilter(this)">×</button>
+            `;
+            container.appendChild(filterDiv);
+        }
+
+        function removeCustomFilter(button) {
+            button.parentElement.remove();
+        }
+
+        function clearResults() {
+            updateVisualization(initialData);
+            document.getElementById('search-status').textContent = '✅ Cleared - showing initial data';
+        }
+
+        function updateVisualization(data) {
+            currentData = data;
+            
+            // Clear existing visualization
+            d3.select("#viz").selectAll("*").remove();
+            
+            renderViz(data);
+            
+            // Update stats
+            document.getElementById('stats').innerHTML = 
+                `<strong>Projects:</strong> ${data.nodes.length}<br><strong>Connections:</strong> ${data.links.length}`;
+        }
 
         function renderViz(data) {
-            console.log("Rendering", data.nodes.length, "nodes and", data.links.length, "links");
-            
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
             const svg = d3.select("#viz")
                 .append("svg")
                 .attr("width", width)
                 .attr("height", height);
 
-            const simulation = d3.forceSimulation(data.nodes)
+            simulation = d3.forceSimulation(data.nodes)
                 .force("link", d3.forceLink(data.links).id(d => d.id).distance(150))
                 .force("charge", d3.forceManyBody().strength(-400))
                 .force("center", d3.forceCenter(width / 2, height / 2))
@@ -138,11 +419,8 @@
                 .attr("class", d => `node node-${(d.type || 'default').toLowerCase()}`)
                 .attr("r", 15)
                 .on("click", (event, d) => {
-                    console.log("Clicked:", d.name);
                     if (d.url) {
                         window.open(d.url, '_blank');
-                    } else {
-                        alert(`${d.name}\nType: ${d.type}`);
                     }
                 })
                 .call(d3.drag()
@@ -154,7 +432,7 @@
                 .selectAll("text")
                 .data(data.nodes)
                 .enter().append("text")
-                .text(d => d.name.split('/')[1] || d.name) // Show just repo name
+                .text(d => d.name.split('/')[1] || d.name)
                 .attr("dx", 20)
                 .attr("dy", 4);
 
@@ -190,15 +468,17 @@
                 d.fx = null;
                 d.fy = null;
             }
-
-            // Update stats
-            document.getElementById('stats').innerHTML = 
-                `<strong>Projects:</strong> ${data.nodes.length}<br><strong>Connections:</strong> ${data.links.length}`;
         }
 
-        // Start the visualization
-        renderViz(graphData);
-        console.log("The Wheel: Visualization complete!");
+        // Initialize with default data
+        updateVisualization(initialData);
+
+        // Allow Enter key to trigger search
+        document.getElementById('search-query').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchProjects();
+            }
+        });
     </script>
 </body>
 </html>
