@@ -1,5 +1,12 @@
 import argparse
+import sys
+import os
 from typing import Dict
+
+# Add the project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
 from src.engine.github_adapter import GitHubAdapter
 from src.engine.analyzer import ProjectAnalyzer
 from src.engine.strategy import StrategyAdvisor

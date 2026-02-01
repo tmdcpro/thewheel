@@ -118,11 +118,29 @@
         h2 { margin-top: 0; color: #4a90e2; }
         .status { color: #0f0; font-size: 12px; }
         .loading { color: #f39c12; }
-        #stats {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #333;
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: #eee;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #444;
             font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+            display: none;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .tooltip h4 {
+            margin: 0 0 8px 0;
+            color: #4a90e2;
+            font-size: 14px;
+        }
+        .tooltip .meta {
+            color: #aaa;
+            font-size: 11px;
+            margin-top: 6px;
         }
     </style>
 </head>
@@ -196,13 +214,29 @@
         </div>
 
         <div class="status" id="search-status">✅ Ready to search</div>
+        
+        <div id="blue-ocean-panel" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #333;">
+            <h4 style="color: #27ae60; margin: 5px 0;">🌊 Blue Ocean Analysis</h4>
+            <div id="blue-ocean-results" style="font-size: 12px; color: #ccc;">
+                Run a search to see market opportunities
+            </div>
+            <button class="search-button" onclick="analyzeBlueOceans()" style="background: #27ae60; font-size: 12px; margin-top: 8px;">Analyze Opportunities</button>
+        </div>
+        
         <div id="stats"></div>
         
+        <div class="export-section">
+            <h4>📊 Export & Analysis</h4>
+            <button class="search-button" onclick="exportData()" style="background: #9b59b6; font-size: 12px;">Export JSON</button>
+            <button class="search-button" onclick="generateReport()" style="background: #e67e22; font-size: 12px;">Generate Report</button>
+        </div>
+        
         <p style="font-size: 10px; margin-top: 15px; color: #666;">
-            Click blue nodes to open GitHub repos. Drag to explore relationships.
+            Click blue nodes to open GitHub repos. Drag to explore relationships. Hover for details.
         </p>
     </div>
     <div id="viz"></div>
+    <div class="tooltip" id="tooltip"></div>
 
     <script>
         let currentData = null;
@@ -262,19 +296,46 @@
 
             const status = document.getElementById('search-status');
             status.className = 'loading';
-            status.textContent = '🔄 Searching...';
+            status.textContent = '🔄 Searching GitHub API...';
 
             // Build filter parameters
             const filters = buildFilters();
             
-            // Simulate API call with mock data
-            setTimeout(() => {
+            // Make API call to backend
+            fetch('http://localhost:5000/api/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: query,
+                    filters: filters
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                updateVisualization(data);
+                status.className = 'status';
+                status.textContent = `✅ Found ${data.total_projects} projects from GitHub API`;
+            })
+            .catch(error => {
+                console.error('API Error:', error);
+                status.className = 'status';
+                status.textContent = '⚠️ API unavailable, using mock data';
+                
+                // Fallback to mock data
                 const mockResults = generateMockResults(query, filters);
                 updateVisualization(mockResults);
-                
-                status.className = 'status';
-                status.textContent = `✅ Found ${mockResults.nodes.length} projects`;
-            }, 1500);
+            });
         }
 
         function buildFilters() {
@@ -418,6 +479,12 @@
                 .enter().append("circle")
                 .attr("class", d => `node node-${(d.type || 'default').toLowerCase()}`)
                 .attr("r", 15)
+                .on("mouseover", (event, d) => {
+                    showTooltip(event, d);
+                })
+                .on("mouseout", () => {
+                    hideTooltip();
+                })
                 .on("click", (event, d) => {
                     if (d.url) {
                         window.open(d.url, '_blank');
@@ -468,6 +535,203 @@
                 d.fx = null;
                 d.fy = null;
             }
+        }
+
+        // Initialize with default data
+        updateVisualization(initialData);
+
+        function analyzeBlueOceans() {
+            if (!currentData || currentData.nodes.length === 0) {
+                alert('Please run a search first to analyze opportunities');
+                return;
+            }
+
+            const blueOceanResults = document.getElementById('blue-ocean-results');
+            blueOceanResults.innerHTML = '🔄 Analyzing market opportunities...';
+
+            // Simulate Blue Ocean analysis
+            setTimeout(() => {
+                const opportunities = calculateBlueOceans(currentData);
+                displayBlueOceanResults(opportunities);
+            }, 1000);
+        }
+
+        function calculateBlueOceans(data) {
+            // Group projects by technology/domain
+            const domains = {};
+            
+            data.nodes.forEach(node => {
+                if (node.type === 'Project') {
+                    const domain = extractDomain(node.name);
+                    if (!domains[domain]) {
+                        domains[domain] = { projects: 0, components: 0 };
+                    }
+                    domains[domain].projects++;
+                }
+            });
+
+            // Calculate Blue Ocean scores
+            const opportunities = Object.entries(domains).map(([domain, stats]) => {
+                const blueOceanScore = stats.projects / (stats.components + 1);
+                return {
+                    domain,
+                    projects: stats.projects,
+                    components: stats.components,
+                    score: blueOceanScore,
+                    insight: generateInsight(domain, stats, blueOceanScore)
+                };
+            }).sort((a, b) => b.score - a.score);
+
+            return opportunities;
+        }
+
+        function extractDomain(projectName) {
+            const name = projectName.toLowerCase();
+            if (name.includes('react') || name.includes('vue') || name.includes('angular')) return 'Frontend Frameworks';
+            if (name.includes('tensorflow') || name.includes('pytorch') || name.includes('ml')) return 'Machine Learning';
+            if (name.includes('django') || name.includes('rails') || name.includes('express')) return 'Web Frameworks';
+            if (name.includes('database') || name.includes('sql') || name.includes('mongo')) return 'Databases';
+            return 'General Tools';
+        }
+
+        function generateInsight(domain, stats, score) {
+            if (score > 2) {
+                return `High opportunity: ${stats.projects} projects but low standardization`;
+            } else if (score > 1) {
+                return `Moderate opportunity: Growing market with some competition`;
+            } else {
+                return `Saturated market: Well-established solutions exist`;
+            }
+        }
+
+        function displayBlueOceanResults(opportunities) {
+            const container = document.getElementById('blue-ocean-results');
+            
+            if (opportunities.length === 0) {
+                container.innerHTML = 'No opportunities identified. Try a broader search.';
+                return;
+            }
+
+            let html = '<div style="max-height: 150px; overflow-y: auto;">';
+            opportunities.slice(0, 3).forEach((opp, index) => {
+                const scoreColor = opp.score > 2 ? '#27ae60' : opp.score > 1 ? '#f39c12' : '#e74c3c';
+                html += `
+                    <div style="margin: 8px 0; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                        <div style="font-weight: bold; color: ${scoreColor};">
+                            ${index + 1}. ${opp.domain} (Score: ${opp.score.toFixed(2)})
+                        </div>
+                        <div style="font-size: 11px; color: #aaa; margin-top: 3px;">
+                            ${opp.insight}
+                        </div>
+                        <div style="font-size: 10px; color: #666; margin-top: 2px;">
+                            ${opp.projects} projects analyzed
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            container.innerHTML = html;
+        }
+
+        function showTooltip(event, d) {
+            const tooltip = document.getElementById('tooltip');
+            const repoName = d.name.split('/')[1] || d.name;
+            const orgName = d.name.split('/')[0] || '';
+            
+            let content = `<h4>${repoName}</h4>`;
+            
+            if (d.type === 'Project') {
+                content += `<div><strong>Organization:</strong> ${orgName}</div>`;
+                content += `<div><strong>Type:</strong> ${d.type}</div>`;
+                if (d.url) {
+                    content += `<div><strong>URL:</strong> <span style="color: #4a90e2;">Click to open</span></div>`;
+                }
+                content += `<div class="meta">Click to open repository • Drag to move</div>`;
+            } else {
+                content += `<div><strong>Type:</strong> ${d.type}</div>`;
+                content += `<div class="meta">Component or building block</div>`;
+            }
+            
+            tooltip.innerHTML = content;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+        }
+
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        function exportData() {
+            if (!currentData) {
+                alert('No data to export. Please run a search first.');
+                return;
+            }
+
+            const dataStr = JSON.stringify(currentData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'wheel-research-data.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            document.getElementById('search-status').textContent = '✅ Data exported successfully';
+        }
+
+        function generateReport() {
+            if (!currentData) {
+                alert('No data to generate report. Please run a search first.');
+                return;
+            }
+
+            const query = document.getElementById('search-query').value || 'Unknown Query';
+            const timestamp = new Date().toLocaleString();
+            
+            let report = `# The Wheel Research Report\n\n`;
+            report += `**Query:** ${query}\n`;
+            report += `**Generated:** ${timestamp}\n`;
+            report += `**Projects Found:** ${currentData.nodes.length}\n`;
+            report += `**Relationships:** ${currentData.links.length}\n\n`;
+            
+            report += `## 📊 Project Analysis\n\n`;
+            currentData.nodes.forEach((node, index) => {
+                if (node.type === 'Project') {
+                    report += `${index + 1}. **${node.name}**\n`;
+                    if (node.url) report += `   - URL: ${node.url}\n`;
+                    report += `   - Type: ${node.type}\n\n`;
+                }
+            });
+            
+            const opportunities = calculateBlueOceans(currentData);
+            if (opportunities.length > 0) {
+                report += `## 🌊 Blue Ocean Opportunities\n\n`;
+                opportunities.slice(0, 3).forEach((opp, index) => {
+                    report += `${index + 1}. **${opp.domain}** (Score: ${opp.score.toFixed(2)})\n`;
+                    report += `   - ${opp.insight}\n`;
+                    report += `   - Projects analyzed: ${opp.projects}\n\n`;
+                });
+            }
+            
+            report += `---\n*Generated by The Wheel - AI-Assisted Research Engine*`;
+            
+            const reportBlob = new Blob([report], {type: 'text/markdown'});
+            const url = URL.createObjectURL(reportBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `wheel-report-${Date.now()}.md`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            document.getElementById('search-status').textContent = '✅ Report generated successfully';
         }
 
         // Initialize with default data

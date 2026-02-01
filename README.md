@@ -49,7 +49,19 @@
 
 ### Basic Usage
 
-**Research a technology landscape**:
+**Live GitHub Search** (Recommended):
+```bash
+# Start the complete system with API server
+./start_demo.sh
+
+# Or manually:
+source venv/bin/activate
+pip install -r requirements.txt
+python3 api_server.py &
+open standalone_demo.html
+```
+
+**Command Line Research**:
 ```bash
 source venv/bin/activate
 PYTHONPATH=. python src/main.py "machine learning frameworks" --mock --limit 5
